@@ -1,5 +1,5 @@
 {
-  "pluginAlias": "ExampleHomebridgePlugin",
+  "pluginAlias": "ModernForms",
   "pluginType": "platform",
   "singular": true,
   "schema": {
