@@ -173,6 +173,8 @@ export class ModernFormsPlatformAccessory {
   setBrightness(value: CharacteristicValue, callback: CharacteristicSetCallback) {
     this.platform.log.debug('Set Characteristic Brightness -> ', value);
 
+    // TODO: when sliding up on dimmer from off state, the setLightOn gets called as well.
+    // Sometimes that call makes itt to the device first, causing a split second of 100% brightness
     this.write({
       lightOn: value > 0,
       lightBrightness: value as number,
