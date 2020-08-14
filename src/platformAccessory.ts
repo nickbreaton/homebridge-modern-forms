@@ -2,7 +2,7 @@ import { Service, PlatformAccessory, CharacteristicValue, CharacteristicSetCallb
 import axios from 'axios';
 import memoize from 'memoizee';
 
-import { ExampleHomebridgePlatform } from './platform';
+import { ModernFormsPlatform } from './platform';
 
 const NUMBER_OF_FAN_SPEEDS = 6;
 
@@ -19,7 +19,7 @@ export class ModernFormsPlatformAccessory {
   private lightService: Service;
 
   constructor(
-    private readonly platform: ExampleHomebridgePlatform,
+    private readonly platform: ModernFormsPlatform,
     private readonly accessory: PlatformAccessory,
   ) {
       this.accessory.getService(this.platform.Service.AccessoryInformation)!
@@ -117,7 +117,7 @@ export class ModernFormsPlatformAccessory {
     this.platform.log.debug('Set Fan Characteristic On ->', value);
 
     this.write({
-      fanDirection: value === 1 ? 'forward' : 'reverse',
+      fanDirection: value === 0 ? 'forward' : 'reverse',
     })
       .then(() => callback(null))
       .catch(callback);
@@ -127,7 +127,7 @@ export class ModernFormsPlatformAccessory {
     this.platform.log.debug('Get Fan Characteristic On');
 
     this.read()
-      .then(data => callback(null, data.fanDirection === 'forward' ? 1 : 0))
+      .then(data => callback(null, data.fanDirection === 'forward' ? 0 : 1))
       .catch(callback);
   }
 

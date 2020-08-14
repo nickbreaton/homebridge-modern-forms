@@ -1,4 +1,6 @@
 import { API, DynamicPlatformPlugin, Logger, PlatformAccessory, PlatformConfig, Service, Characteristic } from 'homebridge';
+import find from 'local-devices';
+import axios from 'axios';
 
 import { PLATFORM_NAME, PLUGIN_NAME } from './settings';
 import { ModernFormsPlatformAccessory } from './platformAccessory';
@@ -8,7 +10,7 @@ import { ModernFormsPlatformAccessory } from './platformAccessory';
  * This class is the main constructor for your plugin, this is where you should
  * parse the user config and discover/register accessories with Homebridge.
  */
-export class ExampleHomebridgePlatform implements DynamicPlatformPlugin {
+export class ModernFormsPlatform implements DynamicPlatformPlugin {
   public readonly Service: typeof Service = this.api.hap.Service;
   public readonly Characteristic: typeof Characteristic = this.api.hap.Characteristic;
 
@@ -52,56 +54,50 @@ export class ExampleHomebridgePlatform implements DynamicPlatformPlugin {
   async discoverDevices() {
     type FanConfig = {
       ip: string
+      clientId: string
     }
 
-    const fans: FanConfig[] = this.config.devices;
+    const devices = await find();
 
-    // loop over the discovered devices and register each one if it has not already been registered
+    const potentialFansFromMacRange = devices.filter(device => {
+      return device.mac.toUpperCase().startsWith('C8:93:46');
+    });
+
+    const maybeFans = await Promise.all(potentialFansFromMacRange.map(device => {
+      return axios.post(`http://${device.ip}/mf`, { queryDynamicShadowData: 1 })
+        .then(res => ({ ip: device.ip, clientId: res.data.clientId } as FanConfig))
+        .catch(() => null);
+    }));
+
+    function isNotNull<T>(it: T): it is NonNullable<T> {
+      return it !== null;
+    }
+
+    const fans = maybeFans.filter(isNotNull);
+
     for (const fan of fans) {
-
-      // generate a unique id for the accessory this should be generated from
-      // something globally unique, but constant, for example, the device serial
-      // number or MAC address
-      const uuid = this.api.hap.uuid.generate(fan.ip);
-
-      // see if an accessory with the same uuid has already been registered and restored from
-      // the cached devices we stored in the `configureAccessory` method above
+      const uuid = this.api.hap.uuid.generate(fan.clientId);
       const existingAccessory = this.accessories.find(accessory => accessory.UUID === uuid);
 
       if (existingAccessory) {
-        // the accessory already exists
         this.log.info('Restoring existing accessory from cache:', existingAccessory.displayName);
-
-        // if you need to update the accessory.context then you should run `api.updatePlatformAccessories`. eg.:
-        // existingAccessory.context.device = device;
-        // this.api.updatePlatformAccessories([existingAccessory]);
-
-        // create the accessory handler for the restored accessory
-        // this is imported from `platformAccessory.ts`
         new ModernFormsPlatformAccessory(this, existingAccessory);
-
-      } else {
-        // the accessory does not yet exist, so we need to create it
-        this.log.info('Adding new accessory:', fan.ip);
-
-        // create a new accessory
-        const accessory = new this.api.platformAccessory(fan.ip, uuid);
-
-        // store a copy of the device object in the `accessory.context`
-        // the `context` property can be used to store any data about the accessory you may need
-        accessory.context.device = fan;
-
-        // create the accessory handler for the newly create accessory
-        // this is imported from `platformAccessory.ts`
-        new ModernFormsPlatformAccessory(this, accessory);
-
-        // link the accessory to your platform
-        this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
+        continue;
       }
 
-      // it is possible to remove platform accessories at any time using `api.unregisterPlatformAccessories`, eg.:
-      // this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
-    }
+      this.log.info('Adding new accessory:', fan.clientId);
+      const accessory = new this.api.platformAccessory(fan.clientId, uuid);
 
+      // store a copy of the device object in the `accessory.context`
+      // the `context` property can be used to store any data about the accessory you may need
+      accessory.context.device = fan;
+
+      // create the accessory handler for the newly create accessory
+      // this is imported from `platformAccessory.ts`
+      new ModernFormsPlatformAccessory(this, accessory);
+
+      // link the accessory to your platform
+      this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
+    }
   }
 }
