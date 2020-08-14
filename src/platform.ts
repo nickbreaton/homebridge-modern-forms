@@ -1,7 +1,7 @@
 import { API, DynamicPlatformPlugin, Logger, PlatformAccessory, PlatformConfig, Service, Characteristic } from 'homebridge';
 
 import { PLATFORM_NAME, PLUGIN_NAME } from './settings';
-import { ModernFormsFan } from './modern-forms-fan';
+import { ModernFormsPlatformAccessory } from './platformAccessory';
 
 /**
  * HomebridgePlatform
@@ -78,7 +78,7 @@ export class ExampleHomebridgePlatform implements DynamicPlatformPlugin {
 
         // create the accessory handler for the restored accessory
         // this is imported from `platformAccessory.ts`
-        new ModernFormsFan(this, existingAccessory);
+        new ModernFormsPlatformAccessory(this, existingAccessory);
 
       } else {
         // the accessory does not yet exist, so we need to create it
@@ -93,7 +93,7 @@ export class ExampleHomebridgePlatform implements DynamicPlatformPlugin {
 
         // create the accessory handler for the newly create accessory
         // this is imported from `platformAccessory.ts`
-        new ModernFormsFan(this, accessory);
+        new ModernFormsPlatformAccessory(this, accessory);
 
         // link the accessory to your platform
         this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
