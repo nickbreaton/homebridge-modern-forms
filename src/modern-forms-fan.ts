@@ -1,5 +1,6 @@
 import { Service, PlatformAccessory, CharacteristicValue, CharacteristicSetCallback, CharacteristicGetCallback } from 'homebridge';
 import axios from 'axios';
+import memoize from 'memoizee';
 
 import { ExampleHomebridgePlatform } from './platform';
 
@@ -11,6 +12,10 @@ type RequestPayload = {
   fanDirection: 'forward' | 'reverse',
   lightOn: boolean,
   lightBrightness: number
+}
+
+function getStepWithoutGoingOver(steps) {
+  return Math.floor(100 / steps * 1000) / 1000;
 }
 
 /**
@@ -57,7 +62,7 @@ export class ModernFormsFan {
     this.fanService.getCharacteristic(this.platform.Characteristic.RotationSpeed)
       .on('set', this.setRotationSpeed.bind(this))
       .on('get', this.getRotationSpeed.bind(this))
-      .setProps({ minStep: 100 / NUMBER_OF_FAN_SPEEDS });
+      .setProps({ minStep: getStepWithoutGoingOver(6) });
 
     this.fanService.getCharacteristic(this.platform.Characteristic.RotationDirection)
       .on('set', this.setRotationDirection.bind(this))
@@ -74,14 +79,18 @@ export class ModernFormsFan {
       .on('set', this.setBrightness.bind(this));       // SET - bind to the 'setBrightness` method below
   }
 
-  private read() {
+  private read = memoize(() => {
+    this.platform.log.debug('Read');
+
     return axios.post<RequestPayload>(`http://${this.accessory.context.device.ip}/mf`, {
       queryDynamicShadowData: 1,
     })
       .then(res => res.data);
-  }
+  }, { maxAge: 10 })
 
   private write(options: Partial<RequestPayload>) {
+    this.platform.log.debug('Write ->', options);
+
     return axios.post<RequestPayload>(`http://${this.accessory.context.device.ip}/mf`, options)
       .then(res => res.data);
   }
@@ -105,9 +114,11 @@ export class ModernFormsFan {
   setRotationSpeed(value: CharacteristicValue, callback: CharacteristicSetCallback) {
     this.platform.log.debug('Set Fan Characteristic On ->', value);
 
+    const fanSpeed = Math.round(value as number / 100 * NUMBER_OF_FAN_SPEEDS);
+
     this.write({
-      fanOn: true,
-      fanSpeed: Math.min(Math.round(value as number / 100 * NUMBER_OF_FAN_SPEEDS), 1),
+      fanOn: fanSpeed > 0,
+      fanSpeed,
     })
       .then(() => callback(null))
       .catch(callback);
@@ -159,7 +170,7 @@ export class ModernFormsFan {
     this.platform.log.debug('Set Characteristic Brightness -> ', value);
 
     this.write({
-      lightOn: true,
+      lightOn: value > 0,
       lightBrightness: value as number,
     })
       .then(() => callback(null))
