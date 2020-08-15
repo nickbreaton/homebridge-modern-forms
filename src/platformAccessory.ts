@@ -1,20 +1,13 @@
 import { Service, PlatformAccessory, CharacteristicValue, CharacteristicSetCallback, CharacteristicGetCallback } from 'homebridge';
-import axios from 'axios';
-import memoize from 'memoizee';
 
 import { ModernFormsPlatform } from './platform';
+import { ModernFormsHttpClient } from './utils/client';
 
 const NUMBER_OF_FAN_SPEEDS = 6;
 
-type RequestPayload = {
-  fanOn: boolean,
-  fanSpeed: number,
-  fanDirection: 'forward' | 'reverse',
-  lightOn: boolean,
-  lightBrightness: number
-}
-
 export class ModernFormsPlatformAccessory {
+  private client: ModernFormsHttpClient;
+
   private fanService: Service;
   private lightService: Service;
 
@@ -24,6 +17,8 @@ export class ModernFormsPlatformAccessory {
   ) {
       this.accessory.getService(this.platform.Service.AccessoryInformation)!
         .setCharacteristic(this.platform.Characteristic.Manufacturer, 'Modern Forms');
+
+      this.client = new ModernFormsHttpClient(this.accessory.context.device.ip);
 
       // FAN SERVICE
 
@@ -65,58 +60,44 @@ export class ModernFormsPlatformAccessory {
 
   // HELPERS
 
-  read = memoize(async () => {
-    this.platform.log.debug('Read');
-
-    const res = await axios.post<RequestPayload>(`http://${this.accessory.context.device.ip}/mf`, {
-      queryDynamicShadowData: 1,
-    });
-
-    return res.data;
-  }, { maxAge: 10 })
-
-  write = async (options: Partial<RequestPayload>) => {
-    this.platform.log.debug('Write ->', options);
-
-    const res = await axios.post<RequestPayload>(`http://${this.accessory.context.device.ip}/mf`, options);
-
-    return res.data;
-  }
-
   getStepWithoutGoingOver = (steps: number) => {
     return Math.floor(100 / steps * 1000) / 1000;
+  }
+
+  debug = (...args: unknown[]) => {
+    this.platform.log.debug(`[${this.accessory.context.device.ip}]`, ...args);
   }
 
   // FAN GETTERS / SETTERS
 
   getFanOn(callback: CharacteristicGetCallback) {
-    this.platform.log.debug('Get Fan Characteristic On');
+    this.debug('Get Fan Characteristic On');
 
-    this.read()
+    this.client.get()
       .then(data => callback(null, data.fanOn))
       .catch(callback);
   }
 
   setFanOn(value: CharacteristicValue, callback: CharacteristicSetCallback) {
-    this.platform.log.debug('Set Fan Characteristic On ->', value);
+    this.debug('Set Fan Characteristic On ->', value);
 
-    this.write({ fanOn: Boolean(value) })
+    this.client.update({ fanOn: Boolean(value) })
       .then(() => callback(null))
       .catch(callback);
   }
 
   getRotationSpeed(callback: CharacteristicGetCallback) {
-    this.platform.log.debug('Get Fan Characteristic On');
+    this.debug('Get Fan Characteristic On');
 
-    this.read()
+    this.client.get()
       .then(data => callback(null, data.fanSpeed * 100 / NUMBER_OF_FAN_SPEEDS))
       .catch(callback);
   }
 
   setRotationDirection(value: CharacteristicValue, callback: CharacteristicSetCallback) {
-    this.platform.log.debug('Set Fan Characteristic On ->', value);
+    this.debug('Set Fan Characteristic On ->', value);
 
-    this.write({
+    this.client.update({
       fanDirection: value === 0 ? 'forward' : 'reverse',
     })
       .then(() => callback(null))
@@ -124,19 +105,19 @@ export class ModernFormsPlatformAccessory {
   }
 
   getRotationDirection(callback: CharacteristicGetCallback) {
-    this.platform.log.debug('Get Fan Characteristic On');
+    this.debug('Get Fan Characteristic On');
 
-    this.read()
+    this.client.get()
       .then(data => callback(null, data.fanDirection === 'forward' ? 0 : 1))
       .catch(callback);
   }
 
   setRotationSpeed(value: CharacteristicValue, callback: CharacteristicSetCallback) {
-    this.platform.log.debug('Set Fan Characteristic On ->', value);
+    this.debug('Set Fan Characteristic On ->', value);
 
     const fanSpeed = Math.round(value as number / 100 * NUMBER_OF_FAN_SPEEDS);
 
-    this.write({
+    this.client.update({
       fanOn: fanSpeed > 0,
       fanSpeed,
     })
@@ -147,35 +128,35 @@ export class ModernFormsPlatformAccessory {
   // LIGHT GETTERS / SETTERS
 
   getLightOn(callback: CharacteristicGetCallback) {
-    this.platform.log.debug('Get Light Characteristic On');
+    this.debug('Get Light Characteristic On');
 
-    this.read()
+    this.client.get()
       .then(data => callback(null, data.lightOn))
       .catch(callback);
   }
 
   setLightOn(value: CharacteristicValue, callback: CharacteristicSetCallback) {
-    this.platform.log.debug('Set Light Characteristic On ->', value);
+    this.debug('Set Light Characteristic On ->', value);
 
-    this.write({ lightOn: Boolean(value) })
+    this.client.update({ lightOn: Boolean(value) })
       .then(() => callback(null))
       .catch(callback);
   }
 
   getBrightness(callback: CharacteristicSetCallback) {
-    this.platform.log.debug('Get Characteristic Brightness');
+    this.debug('Get Characteristic Brightness');
 
-    this.read()
+    this.client.get()
       .then(data => callback(null, data.lightBrightness))
       .catch(callback);
   }
 
   setBrightness(value: CharacteristicValue, callback: CharacteristicSetCallback) {
-    this.platform.log.debug('Set Characteristic Brightness -> ', value);
+    this.debug('Set Characteristic Brightness -> ', value);
 
     // TODO: when sliding up on dimmer from off state, the setLightOn gets called as well.
     // Sometimes that call makes itt to the device first, causing a split second of 100% brightness
-    this.write({
+    this.client.update({
       lightOn: value > 0,
       lightBrightness: value as number,
     })
