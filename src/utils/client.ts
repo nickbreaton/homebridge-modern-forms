@@ -14,19 +14,27 @@ type RequestPayload = Partial<ResponsePayload>
 const BATCH_TIME = Math.floor(1000 / 60);
 
 export class ModernFormsHttpClient {
+  private nextUpdatePayloads: RequestPayload[] = []
+  private nextUpdateCallbacks: Array<(promise: Promise<ResponsePayload>) => void> = []
+
   constructor(private readonly ip: string) {}
 
-  get = memoize(
-    () => axios
-      .post<ResponsePayload>(`http://${this.ip}/mf`, { queryDynamicShadowData: 1 })
-      .then(res => res.data),
+  // PRIVATE
+
+  private request(payload: RequestPayload & { queryDynamicShadowData?: 1 }) {
+    return axios
+      .post<ResponsePayload>(`http://${this.ip}/mf`, payload)
+      .then(res => res.data);
+  }
+
+  // PUBLIC
+
+  public readonly get = memoize(
+    () => this.request({ queryDynamicShadowData: 1 }),
     { maxAge: BATCH_TIME },
   )
 
-  nextUpdatePayloads: RequestPayload[] = []
-  nextUpdateCallbacks: Array<(promise: Promise<ResponsePayload>) => void> = []
-
-  update = (payload: RequestPayload) => {
+  public readonly update = (payload: RequestPayload) => {
     if (this.nextUpdatePayloads.length === 0) {
       setTimeout(() => {
         const payload = this.nextUpdatePayloads.reduce<RequestPayload>((final, current) => {
@@ -38,9 +46,7 @@ export class ModernFormsHttpClient {
         this.nextUpdatePayloads = [];
         this.nextUpdateCallbacks = [];
 
-        const promise = axios
-          .post<ResponsePayload>(`http://${this.ip}/mf`, payload)
-          .then(res => res.data);
+        const promise = this.request(payload);
 
         callbacks.forEach(callback => callback(promise));
       }, BATCH_TIME);
