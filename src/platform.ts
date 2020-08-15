@@ -1,6 +1,8 @@
 import { API, DynamicPlatformPlugin, Logger, PlatformAccessory, PlatformConfig, Service, Characteristic } from 'homebridge';
-import find from 'local-devices';
 import axios from 'axios';
+import Arpping, { ArppingEntry} from 'arpping';
+import network from 'network';
+import getBroadcastAddress from 'broadcast-address';
 
 import { PLATFORM_NAME, PLUGIN_NAME } from './settings';
 import { ModernFormsPlatformAccessory } from './platformAccessory';
@@ -57,7 +59,17 @@ export class ModernFormsPlatform implements DynamicPlatformPlugin {
       clientId: string
     }
 
-    const devices = await find();
+    const devices = await new Promise<ArppingEntry[]>((res, rej) => {
+      network.get_active_interface((error, int) => {
+        if (error) {
+          rej(error);
+        } else {
+          const broadcastAddress = getBroadcastAddress(int.name);
+          const arpping = new Arpping({});
+          arpping.discover(broadcastAddress).then(res, rej);
+        }
+      });
+    });
 
     const potentialFansFromMacRange = devices.filter(device => {
       return device.mac.toUpperCase().startsWith('C8:93:46');
@@ -65,7 +77,10 @@ export class ModernFormsPlatform implements DynamicPlatformPlugin {
 
     const maybeFans = await Promise.all(potentialFansFromMacRange.map(device => {
       return axios.post(`http://${device.ip}/mf`, { queryDynamicShadowData: 1 })
-        .then(res => ({ ip: device.ip, clientId: res.data.clientId } as FanConfig))
+        .then(res => {
+          const clientId = res.data.clientId + (process.env.MODERN_FORMS_DEBUG ? '_DEBUG' : '');
+          return { ip: device.ip, clientId } as FanConfig;
+        })
         .catch(() => null);
     }));
 

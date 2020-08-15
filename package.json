@@ -26,9 +26,11 @@
     "homebridge-plugin"
   ],
   "dependencies": {
+    "arpping": "^2.0.0",
     "axios": "^0.19.2",
-    "local-devices": "^3.0.0",
-    "memoizee": "^0.4.14"
+    "broadcast-address": "^1.0.2",
+    "memoizee": "^0.4.14",
+    "network": "^0.5.0"
   },
   "devDependencies": {
     "@types/memoizee": "^0.4.4",
