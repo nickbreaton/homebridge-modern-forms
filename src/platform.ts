@@ -46,7 +46,7 @@ export class ModernFormsPlatform implements DynamicPlatformPlugin {
       flatMap(subnet => getIpRange(subnet)),
       flatMap(ip => ping.promise.probe(ip).then(() => ip)),
       flatMap(ip => getMAC(ip).pipe(
-        map(mac => mac.toUpperCase()),
+        map(mac => mac?.toUpperCase() ?? ''),
         filter(mac => mac.startsWith('C8:93:46')),
         mapTo(ip),
       )),
