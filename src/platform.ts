@@ -1,22 +1,19 @@
 import { API, DynamicPlatformPlugin, Logger, PlatformAccessory, PlatformConfig, Service, Characteristic } from 'homebridge';
-import axios from 'axios';
-import Arpping, { ArppingEntry} from 'arpping';
 import network from 'network';
-import getBroadcastAddress from 'broadcast-address';
+import { bindNodeCallback, of, partition } from 'rxjs';
+import { tap, flatMap, filter, mapTo, share, map } from 'rxjs/operators';
+import ping from 'ping';
+import calculateNetwork from 'network-calculator';
+import getIpRange from 'get-ip-range';
+import arp from 'node-arp';
 
 import { PLATFORM_NAME, PLUGIN_NAME } from './settings';
 import { ModernFormsPlatformAccessory } from './platformAccessory';
+import { ModernFormsHttpClient } from './utils/client';
 
-/**
- * HomebridgePlatform
- * This class is the main constructor for your plugin, this is where you should
- * parse the user config and discover/register accessories with Homebridge.
- */
 export class ModernFormsPlatform implements DynamicPlatformPlugin {
   public readonly Service: typeof Service = this.api.hap.Service;
   public readonly Characteristic: typeof Characteristic = this.api.hap.Characteristic;
-
-  // this is used to track restored cached accessories
   public readonly accessories: PlatformAccessory[] = [];
 
   constructor(
@@ -26,93 +23,62 @@ export class ModernFormsPlatform implements DynamicPlatformPlugin {
   ) {
     this.log.debug('Finished initializing platform:', this.config.name);
 
-    // When this event is fired it means Homebridge has restored all cached accessories from disk.
-    // Dynamic Platform plugins should only register new accessories after this event was fired,
-    // in order to ensure they weren't added to homebridge already. This event can also be used
-    // to start discovery of new accessories.
     this.api.on('didFinishLaunching', () => {
-      log.debug('Executed didFinishLaunching callback');
-      // run the method to discover / register your devices as accessories
+      this.log.debug('Executed didFinishLaunching callback');
       this.discoverDevices();
     });
   }
 
-  /**
-   * This function is invoked when homebridge restores cached accessories from disk at startup.
-   * It should be used to setup event handlers for characteristics and update respective values.
-   */
   configureAccessory(accessory: PlatformAccessory) {
     this.log.info('Loading accessory from cache:', accessory.displayName);
-
-    // add the restored accessory to the accessories cache so we can track if it has already been registered
     this.accessories.push(accessory);
   }
 
-  /**
-   * This is an example method showing how to register discovered accessories.
-   * Accessories must only be registered once, previously created accessories
-   * must not be registered again to prevent "duplicate UUID" errors.
-   */
   async discoverDevices() {
-    type FanConfig = {
-      ip: string
-      clientId: string
-    }
+    this.log.info('Looking for Modern Forms devices on network');
 
-    const devices = await new Promise<ArppingEntry[]>((res, rej) => {
-      network.get_active_interface((error, int) => {
-        if (error) {
-          rej(error);
-        } else {
-          const broadcastAddress = getBroadcastAddress(int.name);
-          const arpping = new Arpping({});
-          arpping.discover(broadcastAddress).then(res, rej);
-        }
-      });
-    });
+    const getActiveInterface = bindNodeCallback(network.get_active_interface);
+    const getMAC = bindNodeCallback(arp.getMAC.bind(arp));
 
-    const potentialFansFromMacRange = devices.filter(device => {
-      return device.mac.toUpperCase().startsWith('C8:93:46');
-    });
+    const devices$ = getActiveInterface().pipe(
+      map(int => calculateNetwork(int.ip_address, int.netmask)),
+      map(network => network.network + '/' + network.bitmask),
+      flatMap(subnet => getIpRange(subnet)),
+      flatMap(ip => ping.promise.probe(ip).then(() => ip)),
+      flatMap(ip => getMAC(ip).pipe(
+        map(mac => mac.toUpperCase()),
+        filter(mac => mac.startsWith('C8:93:46')),
+        mapTo(ip),
+      )),
+      flatMap(ip => of(new ModernFormsHttpClient(ip)).pipe(
+        flatMap(client => client.get().then(res => res.clientId).catch(() => null)),
+        filter((clientId): clientId is string => clientId !== null),
+        tap(clientId => this.log.info(`Found device at ${ip} with client ID of ${clientId}`)),
+        map(clientId => {
+          const uuid = this.api.hap.uuid.generate(clientId);
+          const existingAccessory = this.accessories.find(accessory => accessory.UUID === uuid);
+          return { ip, clientId, uuid, existingAccessory };
+        }),
+      )),
+      share(),
+    );
 
-    const maybeFans = await Promise.all(potentialFansFromMacRange.map(device => {
-      return axios.post(`http://${device.ip}/mf`, { queryDynamicShadowData: 1 })
-        .then(res => {
-          const clientId = res.data.clientId + (process.env.MODERN_FORMS_DEBUG ? '_DEBUG' : '');
-          return { ip: device.ip, clientId } as FanConfig;
-        })
-        .catch(() => null);
-    }));
+    const [newDevices$, existingDevices$] = partition(
+      devices$,
+      device => !device.existingAccessory,
+    );
 
-    function isNotNull<T>(it: T): it is NonNullable<T> {
-      return it !== null;
-    }
-
-    const fans = maybeFans.filter(isNotNull);
-
-    for (const fan of fans) {
-      const uuid = this.api.hap.uuid.generate(fan.clientId);
-      const existingAccessory = this.accessories.find(accessory => accessory.UUID === uuid);
-
-      if (existingAccessory) {
-        this.log.info('Restoring existing accessory from cache:', existingAccessory.displayName);
-        new ModernFormsPlatformAccessory(this, existingAccessory);
-        continue;
-      }
-
-      this.log.info('Adding new accessory:', fan.clientId);
-      const accessory = new this.api.platformAccessory(fan.clientId, uuid);
-
-      // store a copy of the device object in the `accessory.context`
-      // the `context` property can be used to store any data about the accessory you may need
-      accessory.context.device = fan;
-
-      // create the accessory handler for the newly create accessory
-      // this is imported from `platformAccessory.ts`
+    newDevices$.subscribe(({ uuid, ip, clientId }) => {
+      this.log.info('Adding new accessory:', clientId);
+      const accessory = new this.api.platformAccessory(clientId, uuid);
+      accessory.context.device = { uuid, ip, clientId };
       new ModernFormsPlatformAccessory(this, accessory);
-
-      // link the accessory to your platform
       this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
-    }
+    });
+
+    existingDevices$.subscribe(({ clientId, existingAccessory }) => {
+      this.log.info('Restoring existing accessory from cache:', clientId);
+      new ModernFormsPlatformAccessory(this, existingAccessory!);
+    });
   }
 }

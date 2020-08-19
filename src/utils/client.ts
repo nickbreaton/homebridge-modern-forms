@@ -6,10 +6,11 @@ type ResponsePayload = {
     fanSpeed: number,
     fanDirection: 'forward' | 'reverse',
     lightOn: boolean,
-    lightBrightness: number
+    lightBrightness: number,
+    clientId: string
 }
 
-type RequestPayload = Partial<ResponsePayload>
+type RequestPayload = Omit<Partial<ResponsePayload>, 'clientId'>
 
 const BATCH_TIME = Math.floor(1000 / 60);
 
