@@ -4,6 +4,26 @@
   "singular": true,
   "schema": {
     "type": "object",
-    "properties": {}
+    "properties": {
+      "autoDiscover": {
+        "title": "Auto discover",
+        "type": "boolean",
+        "default": false,
+        "required": false
+      },
+      "fans": {
+        "type": "array",
+        "items": {
+          "title": "Fans",
+          "type": "object",
+          "properties": {
+            "title": "IP",
+            "type": "string",
+            "required": true,
+            "format": "ipv4"
+          }
+        }
+      }
+    }
   }
 }

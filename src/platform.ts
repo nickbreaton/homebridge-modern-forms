@@ -1,7 +1,7 @@
 import { API, DynamicPlatformPlugin, Logger, PlatformAccessory, PlatformConfig, Service, Characteristic } from 'homebridge';
 import network from 'network';
-import { bindNodeCallback, of, partition } from 'rxjs';
-import { tap, flatMap, filter, mapTo, share, map } from 'rxjs/operators';
+import { bindNodeCallback, of, partition, from, concat, EMPTY } from 'rxjs';
+import { tap, flatMap, filter, mapTo, share, map, distinct } from 'rxjs/operators';
 import ping from 'ping';
 import calculateNetwork from 'network-calculator';
 import getIpRange from 'get-ip-range';
@@ -11,6 +11,11 @@ import { PLATFORM_NAME, PLUGIN_NAME } from './settings';
 import { ModernFormsPlatformAccessory } from './platformAccessory';
 import { ModernFormsHttpClient } from './utils/client';
 
+interface Config extends PlatformConfig {
+  autoDiscover?: boolean
+  fans?: Array<{ ip: string }>
+}
+
 export class ModernFormsPlatform implements DynamicPlatformPlugin {
   public readonly Service: typeof Service = this.api.hap.Service;
   public readonly Characteristic: typeof Characteristic = this.api.hap.Characteristic;
@@ -18,7 +23,7 @@ export class ModernFormsPlatform implements DynamicPlatformPlugin {
 
   constructor(
     public readonly log: Logger,
-    public readonly config: PlatformConfig,
+    public readonly config: Config,
     public readonly api: API,
   ) {
     this.log.debug('Finished initializing platform:', this.config.name);
@@ -40,10 +45,24 @@ export class ModernFormsPlatform implements DynamicPlatformPlugin {
     const getActiveInterface = bindNodeCallback(network.get_active_interface);
     const getMAC = bindNodeCallback(arp.getMAC.bind(arp));
 
-    const devices$ = getActiveInterface().pipe(
+    const cachedIpAddresses$ = from(this.accessories ?? []).pipe(
+      map(accessory => accessory.context.device.ip),
+    );
+
+    const configIpAddresses$ = from(this.config.fans ?? []).pipe(
+      map(fan => fan.ip),
+    );
+
+    const networkIpAddresses$ = of(this.config.autoDiscover).pipe(
+      flatMap(autoDiscover => autoDiscover === false ? EMPTY : getActiveInterface()),
+      tap(() => this.log.debug('Searching network for Modern Forms fans')),
       map(int => calculateNetwork(int.ip_address, int.netmask)),
       map(network => network.network + '/' + network.bitmask),
       flatMap(subnet => getIpRange(subnet)),
+    );
+
+    const devices$ = concat(cachedIpAddresses$, configIpAddresses$, networkIpAddresses$).pipe(
+      distinct(),
       flatMap(ip => ping.promise.probe(ip).then(() => ip)),
       flatMap(ip => getMAC(ip).pipe(
         map(mac => mac?.toUpperCase() ?? ''),
