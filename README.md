@@ -17,9 +17,9 @@ Add support for [Modern Forms](https://modernforms.com) fans to Homekit using Ho
 1. Add the following to your Homebridge `config.json` under platforms.
 
     ```json
-        {
-            "platform": "ModernForms"
-        }
+    {
+        "platform": "ModernForms"
+    }
     ```
 
 1. Verify your `config.json` looks similar to the following.
@@ -42,4 +42,33 @@ Add support for [Modern Forms](https://modernforms.com) fans to Homekit using Ho
 
 1. You’re all set! Any fans you saw in the Modern Forms app should appear in the Home app automatically.
 
+## Configuration
 
+### Specifying Fan IP Addresses
+
+If any of your fans are not automatically found, try specifiying their IP addresses in the following format.
+
+```json
+{
+    "platform": "ModernForms",
+    "fans": [
+        {
+            "ip": "192.168.0.10"
+        },
+        {
+            "ip": "192.168.0.11"
+        }
+    ]
+}
+```
+
+### Disabling Auto Discovery
+
+If you would like to disable the automatic discovery of fans on your network, specify the following option. You will need to specify the IP address of your fans manually.
+
+```json
+{
+    "platform": "ModernForms",
+    "autoDiscover": false
+}
+```
