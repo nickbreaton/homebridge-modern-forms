@@ -8,7 +8,7 @@
       "autoDiscover": {
         "title": "Auto discover",
         "type": "boolean",
-        "default": false,
+        "default": true,
         "required": false
       },
       "fans": {
