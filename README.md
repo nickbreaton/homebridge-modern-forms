@@ -1,6 +1,6 @@
 # Modern Forms Homebridge Plugin
 
-Add [Modern Forms](https://modernforms.com) fans to your Home app using Homebridge.
+Add support for [Modern Forms](https://modernforms.com) fans to Homekit using Homebridge.
 
 ## Prerequisites
 

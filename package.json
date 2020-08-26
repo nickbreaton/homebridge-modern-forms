@@ -2,7 +2,7 @@
   "displayName": "Modern Forms",
   "name": "homebridge-modern-forms",
   "version": "0.0.5",
-  "description": "A short description about what your plugin does.",
+  "description": "Add Modern Forms fans to your Home app using Homebridge.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
