@@ -8,10 +8,10 @@ Add support for [Modern Forms](https://modernforms.com) fans to Homekit using Ho
 
 ## Setup
 
-1. Add any devices you'd like to control to your home network.
+1. Add any fans you'd like to control to your home network.
     1. Download the Modern Forms [iOS](https://apps.apple.com/us/app/modern-forms/id1425046298) or [Android](https://play.google.com/store/apps/details?id=com.WAC.PlayStore.ModernForms&hl=en_US) app.
-    1. Follow the instructions to pair your devices.
-    1. Verify your devices show up in the app and can be controlled.
+    1. Follow the instructions to pair your fan.
+    1. Verify your fans show up in the app and can be controlled.
     1. Optionally, delete the app.
 
 1. Add the following to your Homebridge `config.json` under platforms.
@@ -40,6 +40,6 @@ Add support for [Modern Forms](https://modernforms.com) fans to Homekit using Ho
     }
     ```
 
-1. You’re all set! Any devices you saw in the Modern Fans app should appear in the Home app automatically.
+1. You’re all set! Any fans you saw in the Modern Forms app should appear in the Home app automatically.
 
 
