@@ -64,7 +64,7 @@ If any of your fans are not automatically found, try specifiying their IP addres
 
 ### Disabling Auto Discovery
 
-If you would like to disable the automatic discovery of fans on your network, specify the following option. You will need to specify the IP address of your fans manually.
+If you would like to disable the automatic discovery of fans on your network, specify the following option. You will need to specify the IP address of your fans manually [as shown above](#specifying-fan-ip-addresses).
 
 ```json
 {
