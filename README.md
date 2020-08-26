@@ -40,6 +40,6 @@ Add [Modern Forms](https://modernforms.com) fans to your Home app using Homebrid
     }
     ```
 
-1. You're all set! Any devices you saw in the Modern Fans app should appear in the Home app automatically.
+1. You’re all set! Any devices you saw in the Modern Fans app should appear in the Home app automatically.
 
 

@@ -23,7 +23,8 @@
     "prepublishOnly": "npm run lint && npm run build"
   },
   "keywords": [
-    "homebridge-plugin"
+    "homebridge-plugin",
+    "modern-forms"
   ],
   "dependencies": {
     "@network-utils/arp-lookup": "^1.3.4",
