@@ -47,10 +47,12 @@ export class ModernFormsPlatform implements DynamicPlatformPlugin {
 
     const cachedIpAddresses$ = from(this.accessories ?? []).pipe(
       map(accessory => accessory.context.device.ip),
+      tap(ip => this.log.debug('Found potential IP address from cached devices:', ip)),
     );
 
     const configIpAddresses$ = from(this.config.fans ?? []).pipe(
       map(fan => fan.ip),
+      tap(ip => this.log.debug('Found potential IP address from config:', ip)),
     );
 
     const networkIpAddresses$ = of(this.config.autoDiscover).pipe(
@@ -59,16 +61,17 @@ export class ModernFormsPlatform implements DynamicPlatformPlugin {
       map(int => calculateNetwork(int.ip_address, int.netmask)),
       map(network => network.network + '/' + network.bitmask),
       flatMap(subnet => getIpRange(subnet)),
-    );
-
-    const devices$ = concat(cachedIpAddresses$, configIpAddresses$, networkIpAddresses$).pipe(
-      distinct(),
       flatMap(ip => ping.promise.probe(ip).then(() => ip)),
       flatMap(ip => getMAC(ip).pipe(
         map(mac => mac?.toUpperCase() ?? ''),
         filter(mac => mac.startsWith('C8:93:46')),
         mapTo(ip),
       )),
+      tap(ip => this.log.debug('Found potential IP address from network and filtering by MAC vendor:', ip)),
+    );
+
+    const devices$ = concat(cachedIpAddresses$, configIpAddresses$, networkIpAddresses$).pipe(
+      distinct(),
       flatMap(ip => of(new ModernFormsHttpClient(ip)).pipe(
         flatMap(client => client.get().then(res => res.clientId).catch(() => null)),
         filter((clientId): clientId is string => clientId !== null),
