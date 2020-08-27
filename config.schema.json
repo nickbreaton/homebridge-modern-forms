@@ -7,20 +7,25 @@
     "properties": {
       "autoDiscover": {
         "title": "Auto discover",
+        "description": "Disable automatic discovery of fans on your local network.",
         "type": "boolean",
         "default": true,
         "required": false
       },
       "fans": {
+        "title": "Fans",
+        "description": "(optional) Fans will be automatically discovered.",
         "type": "array",
         "items": {
-          "title": "Fans",
+          "title": "Fan",
           "type": "object",
           "properties": {
-            "title": "IP",
-            "type": "string",
-            "required": true,
-            "format": "ipv4"
+            "ip": {
+              "title": "IP",
+              "type": "string",
+              "required": true,
+              "format": "ipv4"
+            }
           }
         }
       }
