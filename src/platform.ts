@@ -58,7 +58,7 @@ export class ModernFormsPlatform implements DynamicPlatformPlugin {
     const networkIpAddresses$ = of(this.config.autoDiscover).pipe(
       flatMap(autoDiscover => autoDiscover === false ? EMPTY : getActiveInterface()),
       tap(() => this.log.debug('Searching network for Modern Forms fans')),
-      map(int => calculateNetwork(int.ip_address, int.netmask)),
+      map(int => calculateNetwork(int.ip_address ?? '192.168.0.1', int.netmask ?? '255.255.255.0')),
       map(network => network.network + '/' + network.bitmask),
       flatMap(subnet => getIpRange(subnet)),
       flatMap(ip => ping.promise.probe(ip).then(() => ip)),
