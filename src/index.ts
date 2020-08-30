@@ -7,5 +7,5 @@ import { ModernFormsPlatform } from './platform';
  * This method registers the platform with Homebridge
  */
 export = (api: API) => {
-  api.registerPlatform(PLATFORM_NAME, ModernFormsPlatform);
+  api.registerPlatform("homebridge-modern-forms", PLATFORM_NAME, ModernFormsPlatform);
 }
