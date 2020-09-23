@@ -16,7 +16,9 @@ export class ModernFormsPlatformAccessory {
     private readonly accessory: PlatformAccessory,
   ) {
       this.accessory.getService(this.platform.Service.AccessoryInformation)!
-        .setCharacteristic(this.platform.Characteristic.Manufacturer, 'Modern Forms');
+        .setCharacteristic(this.platform.Characteristic.Manufacturer, 'Modern Forms')
+        .setCharacteristic(this.platform.Characteristic.Model, 'Unknown')
+        .setCharacteristic(this.platform.Characteristic.SerialNumber, this.accessory.context.device.clientId);
 
       this.client = new ModernFormsHttpClient(this.accessory.context.device.ip);
 
