@@ -1,3 +1,10 @@
+> [!WARNING]
+> ### This project is no longer maintained.
+>
+> I originally created this as a small side project while living in a rental unit that had a Modern Forms fan. I have since moved and don’t have any devices that can be used to test changes. Due to this, I will not be pushing any further updates.
+>
+> Please refrain from reaching out regarding changes. The code is available free of charge; you are more than welcome to fork and distribute it under a new package name.
+
 # Modern Forms Homebridge Plugin
 
 Add support for [Modern Forms](https://modernforms.com) fans to Homekit using Homebridge.
